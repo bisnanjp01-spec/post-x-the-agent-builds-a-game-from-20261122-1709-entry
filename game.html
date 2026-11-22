@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Neon Snake — one prompt, one game</title>
+<style>
+  @font-face { font-family: 'JetBrains Mono'; src: url('assets/JetBrainsMono-Regular.ttf'); font-weight: 400; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('assets/JetBrainsMono-Bold.ttf'); font-weight: 700; }
+  html, body { margin: 0; padding: 0; background: #191419; width: 1080px; height: 1920px; overflow: hidden; }
+  canvas { display: block; width: 1080px; height: 1920px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="1080" height="1920"></canvas>
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var CELL = 54;
+  var COLS = 20;
+  var TOP = 150;
+  var ROWS = 32;
+  var MAGENTA = '#c41c83';
+  var CYAN = '#22d3ee';
+  var INK = '#191419';
+  var WHITE = '#ffffff';
+
+  var snake, dir, pending, orb, score, orbsEaten, stepMs, alive, deadAt, frame;
+
+  function reset() {
+    snake = [];
+    var cy = 16;
+    for (var i = 0; i < 5; i++) snake.push({ x: 10 - i, y: cy });
+    dir = { x: 1, y: 0 };
+    pending = [];
+    score = 0;
+    orbsEaten = 0;
+    stepMs = 140;
+    alive = true;
+    deadAt = 0;
+    frame = 0;
+    placeOrb();
+  }
+
+  function placeOrb() {
+    var free = [];
+    for (var y = 0; y < ROWS; y++) {
+      for (var x = 0; x < COLS; x++) {
+        var busy = false;
+        for (var i = 0; i < snake.length; i++) {
+          if (snake[i].x === x && snake[i].y === y) { busy = true; break; }
+        }
+        if (!busy) free.push({ x: x, y: y });
+      }
+    }
+    orb = free[Math.floor(Math.random() * free.length)];
+  }
+
+  function step() {
+    if (!alive) return;
+    if (pending.length) {
+      var d = pending.shift();
+      if (!(d.x === -dir.x && d.y === -dir.y)) dir = d;
+    }
+    var head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) { die(); return; }
+    for (var i = 0; i < snake.length; i++) {
+      if (snake[i].x === head.x && snake[i].y === head.y) { die(); return; }
+    }
+    snake.unshift(head);
+    if (head.x === orb.x && head.y === orb.y) {
+      score += 10;
+      orbsEaten++;
+      if (orbsEaten % 5 === 0) stepMs = Math.max(70, stepMs - 10);
+      placeOrb();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function die() {
+    alive = false;
+    deadAt = performance.now();
+  }
+
+  function steer(x, y) {
+    if (!alive) return;
+    if (x === -dir.x && y === -dir.y) return;
+    if (pending.length < 3) pending.push({ x: x, y: y });
+  }
+
+  function draw() {
+    frame++;
+    ctx.fillStyle = INK;
+    ctx.fillRect(0, 0, 1080, 1920);
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (var gx = 0; gx <= COLS; gx++) {
+      ctx.beginPath(); ctx.moveTo(gx * CELL, TOP); ctx.lineTo(gx * CELL, TOP + ROWS * CELL); ctx.stroke();
+    }
+    for (var gy = 0; gy <= ROWS; gy++) {
+      ctx.beginPath(); ctx.moveTo(0, TOP + gy * CELL); ctx.lineTo(COLS * CELL, TOP + gy * CELL); ctx.stroke();
+    }
+    ctx.fillStyle = WHITE;
+    ctx.font = '700 44px "JetBrains Mono", monospace';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NEON SNAKE', 36, 75);
+    ctx.fillStyle = MAGENTA;
+    ctx.font = '700 44px "JetBrains Mono", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('SCORE ' + String(score).padStart(3, '0'), 1044, 75);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = MAGENTA;
+    ctx.fillRect(0, 128, 1080, 4);
+    var pulse = 1 + 0.25 * Math.sin(frame / 6);
+    var ox = orb.x * CELL + CELL / 2;
+    var oy = TOP + orb.y * CELL + CELL / 2;
+    ctx.save();
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = CYAN;
+    ctx.beginPath();
+    ctx.arc(ox, oy, 16 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    for (var i = snake.length - 1; i >= 0; i--) {
+      var s = snake[i];
+      var px = s.x * CELL + 4;
+      var py = TOP + s.y * CELL + 4;
+      ctx.save();
+      ctx.shadowColor = MAGENTA;
+      ctx.shadowBlur = i === 0 ? 28 : 14;
+      ctx.fillStyle = i === 0 ? '#ff4da6' : MAGENTA;
+      roundRect(px, py, CELL - 8, CELL - 8, 12);
+      ctx.fill();
+      ctx.restore();
+    }
+    if (!alive) {
+      ctx.fillStyle = 'rgba(25,20,25,0.82)';
+      ctx.fillRect(0, 0, 1080, 1920);
+      ctx.fillStyle = WHITE;
+      ctx.font = '700 96px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('GAME OVER', 540, 880);
+      ctx.fillStyle = CYAN;
+      ctx.font = '700 56px "JetBrains Mono", monospace';
+      ctx.fillText('SCORE ' + score, 540, 1000);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '400 36px "JetBrains Mono", monospace';
+      ctx.fillText('restarting…', 540, 1100);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  var last = 0;
+  function loop(now) {
+    if (now - last >= stepMs) { step(); last = now; }
+    if (!alive && now - deadAt > 1200) reset();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k === 'ArrowUp' || k === 'w' || k === 'W') steer(0, -1);
+    if (k === 'ArrowDown' || k === 's' || k === 'S') steer(0, 1);
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') steer(-1, 0);
+    if (k === 'ArrowRight' || k === 'd' || k === 'D') steer(1, 0);
+  });
+
+  window.__state = function () {
+    return {
+      head: { x: snake[0].x, y: snake[0].y },
+      dir: { x: dir.x, y: dir.y },
+      orb: { x: orb.x, y: orb.y },
+      score: score,
+      alive: alive,
+      len: snake.length,
+      body: snake.map(function (s) { return { x: s.x, y: s.y }; }),
+      cols: COLS,
+      rows: ROWS,
+      stepMs: stepMs
+    };
+  };
+  window.__steer = steer;
+
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

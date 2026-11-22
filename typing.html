@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>agent typing — neon snake</title>
+<style>
+  @font-face { font-family: 'JetBrains Mono'; src: url('assets/JetBrainsMono-Regular.ttf'); font-weight: 400; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('assets/JetBrainsMono-Bold.ttf'); font-weight: 700; }
+  html, body { margin: 0; padding: 0; background: #191419; width: 1080px; height: 1920px; overflow: hidden; }
+  .bar { height: 110px; background: #241a24; display: flex; align-items: center; padding: 0 40px; }
+  .dot { width: 26px; height: 26px; border-radius: 50%; margin-right: 18px; }
+  .r { background: #ff5f57; } .y { background: #febc2e; } .g { background: #28c840; }
+  .tab { color: #fff; font: 700 34px "JetBrains Mono", monospace; margin-left: 24px; }
+  .agent { margin-left: auto; color: #ff4da6; font: 700 30px "JetBrains Mono", monospace; }
+  #code { padding: 380px 44px 0; font: 400 30px/1.5 "JetBrains Mono", monospace; white-space: pre; color: #e8e8e8; }
+  .ln { color: #5a4a5a; display: inline-block; width: 52px; text-align: right; margin-right: 22px; user-select: none; }
+  .k { color: #ff4da6; } .s { color: #22d3ee; } .c { color: #6b5b6b; font-style: italic; } .f { color: #ffd479; }
+  .cursor { display: inline-block; width: 18px; height: 40px; background: #ff4da6; vertical-align: -6px; animation: blink 0.7s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+  <div class="tab">game.html — Neon Snake</div>
+  <div class="agent">agent ● typing</div>
+</div>
+<pre id="code"></pre>
+<script>
+(function () {
+  'use strict';
+  var lines = [
+    ['// one prompt, one game', 'c'],
+    ['function step() {', ''],
+    ['  const head = {', ''],
+    ['    x: snake[0].x + dir.x,', ''],
+    ['    y: snake[0].y + dir.y', ''],
+    ['  };', ''],
+    ['  if (wall(head)) return die();', 'k'],
+    ['  snake.unshift(head);', ''],
+    ['  if (head.x === orb.x', ''],
+    ['      && head.y === orb.y) {', ''],
+    ['    score += 10;', 'f'],
+    ['    orbsEaten++;', 'f'],
+    ['    if (orbsEaten % 5 === 0)', 'k'],
+    ['      stepMs = Math.max(70,', ''],
+    ['        stepMs - 10);', ''],
+    ['    placeOrb();', 'f'],
+    ['  } else {', ''],
+    ['    snake.pop();', ''],
+    ['  }', ''],
+    ['}', ''],
+    ['', ''],
+    ['// the orb glows, the snake', 'c'],
+    ['// gets faster every 5 orbs', 'c'],
+    ['function placeOrb() {', ''],
+    ['  orb = freeCell();', 'f'],
+    ['  glow(orb, "#22d3ee");', 's'],
+    ['}', ''],
+    ['', ''],
+    ['requestAnimationFrame(loop);', 'k']
+  ];
+  var pre = document.getElementById('code');
+  var li = 0, ci = 0, cur = null, num = null;
+  function newLine() {
+    var row = document.createElement('span');
+    num = document.createElement('span');
+    num.className = 'ln';
+    num.textContent = String(li + 1).padStart(2, ' ') + ' ';
+    row.appendChild(num);
+    cur = document.createElement('span');
+    cur.className = lines[li][1];
+    row.appendChild(cur);
+    pre.appendChild(row);
+    pre.appendChild(document.createTextNode('\n'));
+  }
+  function tick() {
+    if (li >= lines.length) {
+      var c = document.createElement('span');
+      c.className = 'cursor';
+      pre.appendChild(c);
+      window.__typingDone = true;
+      return;
+    }
+    if (ci === 0) newLine();
+    var text = lines[li][0];
+    if (ci < text.length) {
+      cur.textContent = text.slice(0, ci + 1);
+      ci++;
+      setTimeout(tick, 5);
+    } else {
+      li++; ci = 0;
+      setTimeout(tick, 40);
+    }
+  }
+  window.__typingDone = false;
+  setTimeout(tick, 400);
+})();
+</script>
+</body>
+</html>
